@@ -13,6 +13,8 @@ Useful for longer explanations.
 #check 42
 #check true
 #check Bool
+#check 3 = 3
+#check 3 = 4
 #check Type
 #check Type 1  -- Check the section `More About the Main Concept` to understand these
                -- numbers
@@ -42,6 +44,14 @@ Useful for longer explanations.
 #eval 3.0 / 2
 #eval 3 / 2
 #eval 3 / 0
+
+#check ∃ x : Nat, x = 2
+-- In general, we cannot evaluate a Prop
+-- #eval ∃ x : Nat, x < 0
+
+-- ...but sometimes we can, when there is an algorithm to "decide":
+#eval 3 = 3
+#eval 3 = 4
 
 -- The `def` keyword is used to define a function or a value
 
