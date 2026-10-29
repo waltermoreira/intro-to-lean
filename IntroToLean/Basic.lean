@@ -1,3 +1,5 @@
+import Mathlib
+
 -- # Basic Syntax
 
 -- This is a comment
@@ -72,6 +74,9 @@ theorem sum_eq_sum2a : ∀ (n m : Nat), sum n m = sum2 n m := by
   intro n m
   rfl
 
+
+-- Second class
+
 -- the keyword `fun` is very similar to the keyword `lambda` in Python:
 -- compare with Python: lambda x, y: x + y
 #check fun (a b : Nat) => a + b
@@ -116,3 +121,74 @@ def fib (n : Nat) : Nat :=
 #eval fib 4
 #eval fib 5
 --#eval fib 123456789
+
+-- Let's review the Main Concept on the class' notes:
+
+#check 4 = 4
+#check Prop
+#check Eq.refl 4
+
+-- A bit more clarity of differences between Bool and Prop
+
+#check (Eq.refl 4 : (4 = 4 : Prop))
+#check               (true : Bool)
+
+
+-- And now back to practical things...
+
+#eval [2, 3, 5, 7]
+
+def myList := [2, 3, 5, 7]
+/- How to compute its length?
+.
+.
+.
+.
+.
+-/
+#eval List.length myList
+#eval myList.length
+
+/- How to get the last element?
+.
+.
+.
+.
+.
+-/
+#eval myList.getLast?
+
+def empty : List Nat := []
+#eval empty.length
+#eval empty.getLast?
+
+#eval myList.sum
+
+
+-- In general, in functional programming we use lists a lot, and we process them
+-- with high level operations instead of `for` or `while` loops.
+-- The main operation is `map`.
+
+#check myList.map (fun n => decide (Even n))
+
+def checkEvens (l : List Nat) : List Bool := l.map (fun n => decide (Even n))
+#eval checkEvens myList
+
+-- Calculate the first `n` fibonacci numbers
+def fibonacciUpTo (n : Nat) : List Nat :=
+  (List.range n).map fib
+
+#eval fibonacciUpTo 10
+
+
+-- The other main operation is `fold`.
+
+#check List.foldl
+
+#eval [1, 2, 3, 4, 5].foldl (fun a b => a + b) 0
+
+def mySum (l : List Nat) : Nat := l.foldl (fun a b => a + b) 0
+
+theorem mySum_eq_sum (l : List Nat) : mySum l = List.sum l := by
+  simp only [mySum]
+  rw [List.sum_eq_foldl_nat]
