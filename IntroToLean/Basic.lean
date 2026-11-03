@@ -192,3 +192,118 @@ def mySum (l : List Nat) : Nat := l.foldl (fun a b => a + b) 0
 theorem mySum_eq_sum (l : List Nat) : mySum l = List.sum l := by
   simp only [mySum]
   rw [List.sum_eq_foldl_nat]
+
+
+-- Third class
+
+-- Let's recap how we define functions over types such as `Nat`:
+
+def repeatString : Nat → String → String := fun n s =>
+  match n with
+  | 0 => ""
+  | n + 1 => s ++ repeatString n s
+
+#eval repeatString 3 "foo"
+#eval repeatString 0 "foo"
+
+-- Similarly, we can construct functions over `List Nat` "by cases":
+-- A list can be either:
+-- - the empty list []
+-- - or it can be of the form: `List.cons a as` (`a` is the first element, and
+--   `as` is the "tail" of the list)
+
+#eval [3, 7, 9] = List.cons 3 (List.cons 7 (List.cons 9 []))
+
+-- Let's try to define our own version of List.length
+
+def myLength : List Nat -> Nat := fun l =>
+  match l with
+  | [] => 0
+  | List.cons a as => 1 + myLength as
+
+#eval myLength [3, 7, 9]
+
+-- Another example: find the largest number on a list
+
+def maximum : List Nat -> Nat := fun l =>
+  match l with
+  | [] => 0
+  | .cons a as => max a (maximum as)
+
+#eval maximum [100, 2, 5]
+
+-- Notice that sometimes the code we wrote works for more types than what we declared
+-- in the signature. For example: `myLength`
+
+def myLength2 : {α : Type} → List α → Nat := fun l =>
+  match l with
+  | [] => 0
+  | .cons _ as => 1 + myLength2 as
+
+theorem myLength2_eq_myLength : myLength2 (α := Nat) = myLength := by
+  ext n
+  induction n <;> simp only [myLength, myLength2, Nat.add_left_cancel_iff]
+  assumption
+
+-- Polymorphism usually allow us to apply a given piece of code to a lot more situations
+-- than originally thought.
+-- However, given a polymorphic type, it usually **constrains** the implementation
+-- significatively.
+
+-- Consider the following type. What implementations can we write that have such type?
+def puzzle : {α : Type} → α → α := fun x => sorry
+
+-- Similarly, let's try to write a function that returns the first element of a list,
+-- in the "most polymorphic way possible":
+def getFirst : {α : Type} → List α → α := fun l => sorry
+
+/-
+.
+.
+.
+.
+.
+.
+.
+In fact, we can prove that the type is **empty**!
+-/
+theorem cannotWriteGetFirst : IsEmpty ({α : Type} → List α → α) := by
+  simp only [isEmpty_iff]
+  intro a
+  specialize a ([] : List Empty)
+  grind
+
+-- Since we cannot have exceptions in the type `List α → α`, we need to represent
+-- the presence of errors in the return type:
+
+#print Option
+#check (some 3 : Option Nat)
+#check (none : Option Nat)
+
+def getFirst2 : {α : Type} → List α → Option α := fun l =>
+  match l with
+  | [] => none
+  | .cons a _ => some a
+
+#eval getFirst2 [5, 4, 2]
+#eval (getFirst2 [] : Option Nat)
+
+-- Sometimes we want to collect a bit more information about the type of exceptional
+-- condition:
+
+#print Except
+#check (.ok 3 : Except String Nat)
+#check (.error "this is an error" : Except String Nat)
+
+-- Let's try to parse some strings:
+
+#check Std.Time.PlainTime.parse
+#eval Std.Time.PlainTime.parse "12:23:50"
+#eval Std.Time.PlainTime.parse "foo 12:23:50"
+
+def checkAmPm : String → String := fun s =>
+  match Std.Time.PlainTime.parse s with
+  | .ok result => if result.hour < 12 then "Morning" else "Afternoon"
+  | .error err => s!"There was an error: {err}"
+
+#eval checkAmPm "11:30:00"
