@@ -288,12 +288,23 @@ def getFirst2 : {α : Type} → List α → Option α := fun l =>
 #eval getFirst2 [5, 4, 2]
 #eval (getFirst2 [] : Option Nat)
 
+
+-- Fourth class
+
 -- Sometimes we want to collect a bit more information about the type of exceptional
 -- condition:
 
 #print Except
 #check (.ok 3 : Except String Nat)
 #check (.error "this is an error" : Except String Nat)
+
+def division : Int → Int → Except String Rat := fun a b =>
+  match b with
+  | 0 => .error "division by zero"
+  | _ => .ok (a / b)
+
+#eval division 6 10
+#eval division 1 0
 
 -- Let's try to parse some strings:
 
@@ -307,3 +318,133 @@ def checkAmPm : String → String := fun s =>
   | .error err => s!"There was an error: {err}"
 
 #eval checkAmPm "11:30:00"
+
+-- Structures
+
+-- We have seen that the main way to encode the data is by using *types*, and the
+-- main way to encode the operations on the data is by using *functions*.
+-- So far we have dealt with types already provided to us by the language,
+-- such as `Nat`, `Bool`, `List`, `Option`.  But Lean also allows us to create our
+-- own types.
+
+-- Structures are similar to a Pydantic dataclass in Python.
+
+-- Let's define a type to represent a point in the plane:
+
+structure Point where
+  x : Float
+  y : Float
+
+#print Point  -- `Point` becomes a bonafide type as any other we have seen
+#check Point
+
+def p1 : Point := { x := 1.0, y := 2.0 }
+-- or equivalently
+def p1' := Point.mk 1.0 2.0
+
+#eval p1
+#eval p1.x
+#eval p1.y
+
+def distance (p1 p2 : Point) : Float :=
+  Float.sqrt ((p1.x - p2.x) ^ 2 + (p1.y - p2.y) ^ 2)
+
+#eval distance {x := 0.0, y := 0.0} {x := 1.0, y := 1.0}
+
+
+-- In general, the fields of a structure can be *any* type, including polymorphic types.
+
+structure Pair (α : Type) (β : Type) where
+  first : α
+  second : β
+
+#print Pair
+#check Pair
+
+def myPair1 := Pair.mk "foo" 3
+#check myPair1.second
+
+def myPair2 := Pair.mk 3 (fun (s : String) => "hello " ++ s)
+#check myPair2.second
+#eval myPair2.second "world"
+
+-- Any of the fields can be even of type `Pair`, which we are defining:
+def myPair3 := Pair.mk (Pair.mk 1 2) 3
+#check myPair3
+#check myPair3.first
+#check myPair3.first.first
+
+-- Structure types are call **Product types**.
+
+-- An interesting things with pure functional languages is that we cannot modify
+-- structures, as we usually do in Python (e.g., something like `obj.x = 3`)
+
+def updateFirst {α β : Type} : α → Pair α β → Pair α β := fun x p =>
+  { first := x, second := p.second}
+  -- { p with first := x}
+
+#eval myPair1
+#eval updateFirst "hello" myPair1
+
+
+-- The other way to construct types is called **Sum types**, or **Inductive types**
+
+-- The simplest example:
+
+inductive BasicColor where
+  | red : BasicColor
+  | green : BasicColor
+  | blue : BasicColor
+
+#check BasicColor
+#print BasicColor
+
+#check BasicColor.red
+
+-- A simple inductive type like this is similar to an `Enum` in Python
+-- We have already seen types of this form: `Bool`:
+
+#check Bool  -- Check the definition in the source code of Lean
+
+
+-- More interesting, inductive types can have polymorphic types in their fields, and
+-- can even contain themselves. This is one of the key properties that allows us to
+-- define "infinite" types.
+
+inductive Either (α : Type) (β : Type) where
+  | left : α → Either α β
+  | right : β → Either α β
+
+def example1 : Either Int String := .left 4
+def example2 : Either Int String := .right "foo"
+
+def printExample : Either Int String → String := fun val =>
+  match val with
+  | .left x => s!"a number: {x}"
+  | .right y => y
+
+#eval printExample example1
+#eval printExample example2
+
+-- Check the source code for `Option`, and `Except`:
+#check Option
+#check Except
+
+
+-- Even more interesting: the type can be used to construct itself:
+
+inductive myNaturalNumber where
+  | zero : myNaturalNumber
+  | next : myNaturalNumber → myNaturalNumber
+
+open myNaturalNumber
+#eval zero
+#eval next zero
+#eval next (next zero)
+#eval next (next (next zero))
+
+def one := next zero
+def two := next one
+def three := next two
+
+#check Nat  -- Check again the source of Lean
