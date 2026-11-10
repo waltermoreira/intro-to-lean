@@ -1,4 +1,5 @@
 import Mathlib
+import Lake
 
 -- # Basic Syntax
 
@@ -448,3 +449,171 @@ def two := next one
 def three := next two
 
 #check Nat  -- Check again the source of Lean
+
+
+-- Fifth class
+
+open Lean
+
+-- We are going to start handling `Json` types:
+
+#check Json
+#print Json
+
+def a : Json := .num 5
+#eval a
+
+def b : Json := .str "hello world"
+#eval b
+
+def c : Json := .arr #[a, b]
+#eval c
+
+-- Let's try to construct a value of type Json that represents an object
+def d : Json := .obj sorry
+
+-- Usually there are already convenience functions:
+def d' : Json := .mkObj [("foo", 2), ("bar", .arr #[2, 3])]
+#eval d'
+
+-- ...and an even more convenient notation:
+def e : Json := json% {"foo": 2, "bar": [2, 3]}
+#print e
+
+-- A Json value usually comes from reading a file, or getting data from the network, etc.
+-- The main operations we want to handle are conversions from `String` to `Json`, and
+-- conversions from `Json` to `String`.
+
+#check Json.parse  -- notice the `Except` return type
+
+#eval Json.parse "[2, 4, true]"
+#eval Json.parse "\"foo\""
+#eval Json.parse "{\"foo\": 3}"
+#eval Json.parse "[2, 3}"
+
+open Lake
+#eval do
+  let response ← LogIO.toBaseIO <| getUrl "https://httpbin.org/get"
+  let myJson := match response with
+    | some s => Json.parse s
+    | none => .error "error reading from the network"
+  dbg_trace myJson
+
+-- Let's look at the other direction: `Json` to `String`:
+
+#check ToString.toString
+#eval ToString.toString e
+
+-- This is a kind of polymorphism, usually called "ad-hoc" polymorphism.
+-- We can define **Type Classes** that consist in declaring some properties that
+-- need to hold for, and then we can implement those properties from a selected
+-- set of types.
+
+-- Let's define our own type class:
+-- We want to express some idea of "opposite" of a type
+-- For example: the opposite of a number is the negative number, the opposite of
+-- a string is the reverse string, etc.
+
+class Flippable (α : Type) where
+  flip : α → α
+  flip_twice_eq_id : ∀ (x : α), flip (flip x) = x
+
+-- Now we define how to actually "flip" the types we know.
+
+instance : Flippable Int where
+  flip x := -x
+  flip_twice_eq_id := by grind
+
+instance : Flippable String where
+  flip x := String.ofList x.toList.reverse
+  flip_twice_eq_id := by simp
+
+#eval Flippable.flip (3 : Int)
+#eval Flippable.flip "hello"
+
+-- We can use the type class in other functions:
+def display : {α : Type} → [Flippable α] → [ToString α] → α → String := fun x =>
+  s!"The opposite of {x} is {Flippable.flip x}"
+
+#eval display "hello"
+#eval display (-3)
+
+-- Inspect the `ToString` class
+#eval ToString.toString (json% {"foo": 5, "bar": 10})
+
+-- Now we can easily convert between `Json` and `String`. But handling `Json`
+-- objects is cumbersome:
+
+def myJson := json% {"foo": 4, "bar": {"eggs": 0}}
+
+-- The basic functions for accessing the fields are:
+-- #eval Json.get
+
+#eval match Json.getObjVal? myJson "bar" with
+      | .ok x =>
+        match Json.getObjVal? x "eggs" with
+        | .ok y =>
+          match Json.getInt? y with
+          | .ok z => Except.ok z
+          | .error e => Except.error e
+        | .error e => Except.error e
+      | .error e => Except.error e
+
+-- Simpler syntactic sugar:
+#eval do
+  let x ← Json.getObjVal? myJson "bar"
+  let y ← Json.getObjVal? x "eggs"
+  let z ← Json.getInt? y
+  dbg_trace z
+
+-- To make handling Json easier and more correctly, we can convert Json to our
+-- own types, where we can have better control of the invariants.
+-- For that, we have two **Type Classes**:
+
+#check ToJson
+#check FromJson
+
+-- Many types already have instances for those classes:
+#synth ToJson Int
+#synth ToJson String
+#synth ToJson (List Nat)
+#synth ToJson (Array Nat)
+
+#eval ToJson.toJson 4
+#eval ToJson.toJson "foo"
+#eval ToJson.toJson [3, 4]
+#eval ToJson.toJson #[10, 11]
+
+-- Recall the type `Point`. Let's define an instance to convert it to Json:
+#print Point
+
+instance : ToJson Point where
+  toJson p := Json.mkObj [("x", ToJson.toJson p.x), ("y", ToJson.toJson p.y)]
+
+def p2 : Point := .mk 1 5
+def p2Json : Json := ToJson.toJson p2
+
+#eval p2Json
+
+-- Notice that we **could** define the instance incorrectly (for example, reversing
+-- the roles of "x" and "y").
+
+-- For the reverse direction, we have the class `FromJson`:
+
+instance : FromJson Point where
+  fromJson? p := do
+    let x ← p.getObjValAs? Float "x"
+    let y ← p.getObjValAs? Float "y"
+    return .mk x y
+
+instance : ToString Point where
+  toString p := s!"Point({p.x}, {p.y})"
+
+def p3 : Except String Point := fromJson? (json% {"x": 3.0, "y": 1.0})
+
+#eval p3
+
+-- For correctness, we would like to make statements like:
+--   Converting a value `v` to Json and then converting back to the type, results in `v`
+
+theorem correct : ∀ (p : Point), fromJson? (toJson p) = .ok p := sorry
