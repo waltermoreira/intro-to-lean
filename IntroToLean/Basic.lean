@@ -752,3 +752,85 @@ def claim : Claim := default
 
 -- Now we are in position to write the verification function:
 
+def verify : Json → Bool := fun obj =>
+  let claim? : Except _ Claim := fromJson? obj
+  match claim? with
+  | .ok v =>
+    let claimTypeIsDefinition := v.claimType == .Definition
+    let hasEvidenceChunk? := List.find? (fun x => x.chunkType == .Definition) v.evidence
+    let hasEvidence := hasEvidenceChunk?.isSome
+    claimTypeIsDefinition && hasEvidence
+  | .error _ => false
+
+#eval verify (json% {"claimId": 1, "claimType": "Definition",
+  "evidence": [ {"chunkId": 2, "chunkType": "Definition" }]
+})
+
+
+-- Step 3
+-- ======
+--
+-- In this step we want to prove the function `verify` is correct, in mathematical
+-- terms.
+
+-- One thing we want to verify first is that the conversions to and from JSON
+-- are correct. Lean derived those conversions for us, and the correctness is already
+-- guaranteed by the language. But let's do one of those as example:
+
+theorem claimJsonConversionCorrect : ∀ (c : Claim), fromJson? (toJson c) = .ok c := by
+  sorry
+
+theorem chunkTypeConversionCorrect : ∀ (t : ChunkType), fromJson? (toJson t) = .ok t := by
+  intro t
+  induction t <;> decide
+
+-- Notice that the other "direction" of those previous theorems is not true. Why?
+
+-- Let's express a proposition that says that a claim is a valid definition, as
+-- mentioned in Step 1:
+
+def validDefinition : Claim → Prop := fun c =>
+  c.claimType = .Definition ∧
+  ∃ (e : Chunk), e ∈ c.evidence ∧ e.chunkType = .Definition
+
+-- Finally, the main theorem is:
+
+theorem bossLevel : ∀ (x : Json),
+    verify x = true ↔ ∃ (c : Claim), fromJson? x = .ok c ∧ validDefinition c := by
+  --
+  -- First we assume we have an arbitrary Json object `x`
+  intro x
+  -- We split the goal in the two directions:
+  constructor <;> intro h
+  · -- First direction: if `verify x = true`, then fromJson? x returns a value that
+    -- satisfies the predicate `validDefinition`.
+    --
+    -- Expand the definition of our function `verify`
+    simp only [verify] at h
+    -- ... and split the match in two cases: when fromJson? x is a "good" value and when
+    -- there is an error
+    split at h
+    · -- The case when fromJson? returns a "good" value
+      expose_names
+      -- Let's remember what we need to prove
+      unfold validDefinition
+      -- The magic ingredient is the theorem `List.find?_isSome`
+      simp only [Bool.and_eq_true, beq_iff_eq, List.find?_isSome] at h
+      -- It looks like the value `v` satisfies **exactly** the thesis. Let's use it!
+      use v
+    · -- The case when fromJson? returns an error
+      -- Notice we have a hypothesis that is **false**!
+      -- From `false` we can prove anything.
+      grind
+  · -- The other direction: if `fromJson? x` is a claim that satisfies the predicate,
+    -- then the function `verify` returns `true`.
+    --
+    -- The proof in this case is just bookeeping of the hypothesis:
+    obtain ⟨v, ⟨hv_1, hv_2⟩⟩ := h
+    unfold validDefinition at hv_2
+    obtain ⟨e, ⟨c, he2⟩⟩ := hv_2
+    -- We expand the definition of our function `verify`
+    simp only [verify]
+    -- ... and we let Lean arrange things to conclude the thesis (in this case
+    -- Lean automatically finds the theorem `List.find?_isSome`)
+    grind
