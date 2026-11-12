@@ -716,3 +716,39 @@ inductive ChunkType where
 
 -- Now we can define the type for **Chunk**
 
+structure Chunk where
+  chunkId : Nat
+  chunkType : ChunkType
+  deriving ToJson, FromJson, Repr, DecidableEq, Inhabited
+
+-- The key for automatically deriving `ToJson` or `FromJson`, is to make sure
+-- that **all** the fields are convertible to and from JSON. We know that's true
+-- for `Nat` because Lean provides the conversion. And we know that's true for
+-- `ChunkType` because we enforced the derivation in the declaration of the type.
+
+def myChunk : Chunk := { chunkId := 1, chunkType := ChunkType.Proof }
+#eval toJson myChunk
+
+#eval do
+  let (x : Chunk) ← fromJson? (json% { "chunkId": 2, "chunkType": "Proof" })
+  dbg_trace repr x
+
+-- Notice that the JSON object **can** contain more fields, and those are ignored:
+
+#eval do
+  let (x : Chunk) ← fromJson? (json% { "chunkId": 2, "chunkType": "Proof", "foo": "bar" })
+  dbg_trace repr x
+
+-- And we can do the same for **Claim**
+
+structure Claim where
+  claimId : Nat
+  claimType : ClaimType
+  evidence : List Chunk
+  deriving ToJson, FromJson, Repr, DecidableEq, Inhabited
+
+def claim : Claim := default
+#eval claim
+
+-- Now we are in position to write the verification function:
+
