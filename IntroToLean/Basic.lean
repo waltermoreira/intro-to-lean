@@ -684,3 +684,20 @@ def d1 : Json := json% {
 -- the semantics of the specification from Step 1.
 
 -- Let's start with the types of claims and chunks:
+
+inductive ClaimType where
+  | Definition
+  | ResultStatement
+  | ProvedResult
+  | Dependency
+  | Conjecture
+  | Explanatory
+  deriving ToJson, FromJson, Repr, DecidableEq, Inhabited
+
+#eval toJson ClaimType.ResultStatement
+
+def myDef : Except String ClaimType := fromJson? (json% "Definition")
+#eval myDef
+
+def myDef2 : Except String ClaimType := fromJson? (json% "hello")
+#eval myDef2
