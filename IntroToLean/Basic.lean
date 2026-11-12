@@ -617,3 +617,70 @@ def p3 : Except String Point := fromJson? (json% {"x": 3.0, "y": 1.0})
 --   Converting a value `v` to Json and then converting back to the type, results in `v`
 
 theorem correct : ∀ (p : Point), fromJson? (toJson p) = .ok p := sorry
+
+
+-- Sixth class
+
+-- Let's consider the Bibliography system discussed in the reading:
+-- https://coe-379l-fa26.readthedocs.io/en/latest/readings/using_llms_types_and_structured_responses.html
+--
+-- We'll concentrate on definition claims. We want to:
+--
+-- 1. Write a textual specification of what it means for a claim to be a valid definition.
+-- 2. Write a computable function that verifies that a given JSON object satisfies
+--    the specification.
+-- 3. Express the specification in mathematical terms, and prove that the function
+--    defined in Step 2 is satisfied exactly when the mathematical proposition holds.
+
+-- We'll follow that playbook:
+
+-- Step 1:
+-- =======
+--
+-- A **Claim** is a JSON object with the shape:
+--
+-- { "claimId": 123,
+--   "claimType": ⟨one of Definition | ResultStatement | ProvedResult | Dependency
+--                        | Conjecture | Explanatory⟩,
+--   "evidence": [ chunks, ... ]
+--   ...
+-- }
+--
+-- A **Chunk** has the shape:
+--
+-- { "chunkId: 123",
+--   "chunkType": ⟨one of Definition | ResultStatement | Proof | Conjecture
+--                        | AssumptionOrHypothesis | Example | Discussion
+--                        | FigureOrTable | Unknown⟩,
+--   ...
+-- }
+--
+-- We say that a **Claim** is a valid **Definition** if:
+-- * the claim type is "Definition", and
+-- * the evidence list contains at least one chunk of type "Definition".
+--
+-- For example, the following Json value is a valid definition:
+
+def d1 : Json := json% {
+  "claimId": 1,
+  "claimType": "Definition",
+  "evidence": [
+    { "chunkId": 0, "chunkType": "Example" },
+    { "chunkId": 2, "chunkType": "Definition" }
+  ]
+}
+
+-- Step 2
+-- ======
+--
+-- Now we want to defina a function with signature
+-- `verify : Json → Bool`
+-- that returns `true` precisely when the argument has the shape specified in
+-- Step 1.
+--
+-- It is useful to start constructing the types that will represent the parts
+-- of the JSON object. There might be more than one possible way to represent a
+-- JSON object so we can serialize/deserialize it, but we want to follow closely
+-- the semantics of the specification from Step 1.
+
+-- Let's start with the types of claims and chunks:
