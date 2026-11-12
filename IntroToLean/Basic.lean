@@ -839,12 +839,12 @@ theorem bossLevel : ∀ (x : Json),
 -- Appendix
 
 -- The following fact is **true**:
--- There is a student in the class, such that if that student is using AI at the
--- moment, then **every** student in the class is using AI.
+-- There is a student in the class, such that if that student is browsing Facebook at the
+-- moment, then **every** student in the class is browsing Facebook.
 
-theorem weird (a : Type) [Inhabited a] (P : a → Prop) :
-    ∃ (x : a), P x → ∀ (x : a), P x := by
-  by_cases ∀ (x : a), P x
+theorem weird (c : Type) [Inhabited c] (BrowseFb : c → Prop) :
+    ∃ (s : c), BrowseFb s → ∀ (x : c), BrowseFb x := by
+  by_cases ∀ (x : c), BrowseFb x
   · use default
     intro
     grind
