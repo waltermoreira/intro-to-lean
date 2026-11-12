@@ -834,3 +834,23 @@ theorem bossLevel : ∀ (x : Json),
     -- ... and we let Lean arrange things to conclude the thesis (in this case
     -- Lean automatically finds the theorem `List.find?_isSome`)
     grind
+
+
+-- Appendix
+
+-- The following fact is **true**:
+-- There is a student in the class, such that if that student is using AI at the
+-- moment, then **every** student in the class is using AI.
+
+theorem weird (a : Type) [Inhabited a] (P : a → Prop) :
+    ∃ (x : a), P x → ∀ (x : a), P x := by
+  by_cases ∀ (x : a), P x
+  · use default
+    intro
+    grind
+  · expose_names
+    push Not at h
+    obtain ⟨u, hu⟩ := h
+    use u
+    intro
+    grind
