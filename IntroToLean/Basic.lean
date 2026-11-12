@@ -701,3 +701,18 @@ def myDef : Except String ClaimType := fromJson? (json% "Definition")
 
 def myDef2 : Except String ClaimType := fromJson? (json% "hello")
 #eval myDef2
+
+inductive ChunkType where
+  | Definition
+  | ResultStatement
+  | Proof
+  | Conjecture
+  | AssumptionOrHypothesis
+  | Example
+  | Discussion
+  | FigureOrTable
+  | Unknown
+  deriving ToJson, FromJson, Repr, DecidableEq, Inhabited
+
+-- Now we can define the type for **Chunk**
+
